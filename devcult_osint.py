@@ -76,7 +76,7 @@ except ImportError:
 try:
     import whois as whois_lib
     HAS_WHOIS = True
-except ImportError:
+except Exception:
     HAS_WHOIS = False
 
 # ── API KEYS ──────────────────────────────────────────────────────────
@@ -656,7 +656,7 @@ def render_banner() -> Panel:
     b.append("  ╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝╚══════╝\n",style=f"bold {WHITE}")
     b.append(f"\n  [{ACCENT}]O S I N T  v3.0[/]  [{MUTED}]·  Professional Email Intelligence Platform[/]\n")
     b.append(f"  [{MUTED}]Breach · DNS · WHOIS · IP/ASN · Shodan · GitHub · Gravatar · 33 Platforms[/]\n")
-    b.append(f"\\n  [{MUTED}]Made by [/][bold {ACCENT}]DevCult XII[/][{MUTED}]  ·  github.com/clickmamaheti-prog  ·  For educational & research use only[/]")
+    b.append(f"\n  [{MUTED}]Made by [/][bold {ACCENT}]DevCult XII[/][{MUTED}]  ·  github.com/clickmamaheti-prog  ·  For educational & research use only[/]")
     return Panel(b, border_style=ACCENT, padding=(0, 2))
 
 def render_risk_badge(result: OsintResult) -> Panel:

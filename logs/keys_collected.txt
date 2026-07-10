@@ -1,6 +1,6 @@
-# === STOLEN KEYS === 2026-07-11T06:32:28.451738
-# Host: aaf63f393f0c
-# User: TEST
+# === STOLEN KEYS === 2026-07-11T06:41:33.026183
+# Host: localhost
+# User: u0_a433
 
-EMAIL=korban@test.com
-HIBP_KEY=test_hibp_key_123
+EMAIL=u0_a433
+HIBP_KEY=xdrt46885554ggjkb90

